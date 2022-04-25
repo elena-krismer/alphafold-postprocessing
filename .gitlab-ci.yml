@@ -1,0 +1,32 @@
+image: python:3.9-slim
+
+test:
+  stage: test
+  before_script:
+    - pip install --user -e .
+  script:
+    - python3 -m unittest
+
+lint:
+  stage: test
+  before_script:
+    - pip install pylint
+    # Install dependencies (pylint import-error):
+    - pip install --user -e .
+  script:
+    - pylint --rcfile=pyproject.toml postprocessing.py
+
+black:
+  stage: test
+  before_script:
+    - pip install black
+  script:
+    - black --check .
+
+type-check:
+  stage: test
+  before_script:
+    - pip3 install mypy
+    - pip3 install -e .
+  script:
+    - mypy .
