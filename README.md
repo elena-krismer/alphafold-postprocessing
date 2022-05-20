@@ -16,3 +16,9 @@ and the plots can be saved manually from within the GUI.
 ```sh
 pip install git+https://gitlab.ethz.ch/sis/alphafold-postprocessing
 ```
+
+With pymol support:
+
+```sh
+pip install git+https://gitlab.ethz.ch/sis/alphafold-postprocessing#egg=alphafold-postprocessing[pymol]
+```
