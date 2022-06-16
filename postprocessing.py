@@ -194,6 +194,7 @@ def plot_ticks(Ls: list[int]) -> None:
 def plot_structure(pdb_path: Path, out_path: Path) -> None:
     """Display 3D structure"""
     pymol_cmd.load(str(pdb_path))
+    pymol_cmd.spectrum("b", "red_white_blue", "*", 0, 100)
     pymol_cmd.show("cartoon")
     pymol_cmd.hide("lines", "all")
     pymol_cmd.set("depth_cue", 0)
@@ -203,6 +204,7 @@ def plot_structure(pdb_path: Path, out_path: Path) -> None:
     pymol_cmd.set("cartoon_fancy_helices", 1)
     pymol_cmd.set("cartoon_smooth_loops", 1)
     pymol_cmd.set("cartoon_highlight_color", 1)
+    pymol_cmd.set("cartoon_loop_radius", 0.5)
     pymol_cmd.set("ray_shadows", 0)
     pymol_cmd.set("ray_texture", 1)
     pymol_cmd.ray()
