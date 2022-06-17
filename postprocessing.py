@@ -26,7 +26,7 @@ except ImportError:
     HAVE_PYMOL = False
 
 
-__version__ = "0.1.0"
+__version__ = "1.0.0"
 
 
 class PredictionResult(TypedDict):
