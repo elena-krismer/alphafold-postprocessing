@@ -17,6 +17,7 @@ from string import ascii_uppercase, ascii_lowercase
 import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
 import numpy
+from alphafold_postprocessing.utils import load_pkl
 
 try:
     from pymol import cmd as pymol_cmd
@@ -59,6 +60,7 @@ def main(
         for label, fig in figs:
             if fig is not None:
                 fig.savefig(out_dir / (label + ".svg"))
+                print("Figures have been saved.")
         if HAVE_PYMOL:
             for pdb in glob.glob(os.path.join(data_dir, "*relaxed_*.pdb")):
                 plot_structure(Path(pdb), out_dir / (Path(pdb).stem + ".png"))
@@ -66,19 +68,6 @@ def main(
         plt.show()
 
 
-def load_pkl(path: Path) -> dict[str, Any]:
-    """Load a single pkl file"""
-    with open(path, "rb") as stream:
-        data: dict[str, Any] = pickle.load(stream)
-        return data
-
-
-def load_optional_pkl(path: Path) -> Optional[dict[str, Any]]:
-    """Load a single pkl file if it exists, otherwise return None"""
-    try:
-        return load_pkl(path)
-    except FileNotFoundError:
-        return None
 
 
 def load_prediction_result(path: Path) -> PredictionResult:
@@ -89,17 +78,45 @@ def load_prediction_result(path: Path) -> PredictionResult:
 def load_prediction_results(path: Path) -> Iterable[tuple[str, PredictionResult]]:
     """Load output pkls from a folder"""
 
+    print("Loading prediction results")
+
     try:
         with open(path / "ranking_debug.json", "rb") as f:
             ranking = json.load(f)
-        return (
-            (f"Rank {n}", load_prediction_result(path / f"result_{stem}.pkl"))
-            for n, stem in enumerate(ranking["order"], start=1)
-        )
+        
+        print("Ranking data loaded successfully")
+        
+        # Determine total number of items to process
+        total_items = len(ranking["order"])
+        processed_items = 0
+
+        # Check if all expected .pkl files exist
+        missing_files = []
+        for stem in ranking["order"]:
+            pkl_file = path / f"result_{stem}.pkl"
+            if not pkl_file.exists():
+                missing_files.append(f"result_{stem}.pkl")
+
+        if missing_files:
+            print("Warning: The following .pkl files are missing:")
+            for missing_file in missing_files:
+                print(f"- {missing_file}")
+        else:
+            print("All expected .pkl files are present.")
+
+        # Iterate through ranking data and load corresponding prediction results
+        for n, stem in enumerate(ranking["order"], start=1):
+            processed_items += 1
+            print(f"Loading result {processed_items}/{total_items}")
+            yield f"Rank {n}", load_prediction_result(path / f"result_{stem}.pkl")
+
     except FileNotFoundError as e:
-        sys.stderr.write(
-            f"⚠️ While reading ranking_debug.json: {e}. Using file name labels."
-        )
+        print(f"Warning: Ranking file not found: {e}. Using file name labels.")
+    except Exception as e:
+        print(f"Error occurred while loading ranking data: {e}")
+
+    # If there's an error or no ranking file, fall back to loading individual files
+    print("Loading individual prediction results")
 
     return (
         (
@@ -112,6 +129,7 @@ def load_prediction_results(path: Path) -> Iterable[tuple[str, PredictionResult]
 
 def plot_plddt(models: Iterable[tuple[str, PredictionResult]]) -> Figure:
     """Generate svg outputs for pLDDT"""
+    print("Generating plDDT plot")
     fig = plt.figure(figsize=(10, 6), dpi=100)
 
     for label, model in models:
@@ -125,6 +143,7 @@ def plot_plddt(models: Iterable[tuple[str, PredictionResult]]) -> Figure:
 
 def plot_distogram(models: Sequence[tuple[str, PredictionResult]]) -> Figure:
     """Generate svg distogram"""
+    print("Generating distogram")
     fig = plt.figure(figsize=(3 * len(models), 2))
     for n, (label, model) in enumerate(models, start=1):
         plt.subplot(1, len(models), n)
@@ -156,6 +175,7 @@ def plot_paes(
     Ls: Optional[list[int]] = None,
 ) -> Optional[Figure]:
     """Plot predicted aligned error"""
+    print("Plot predicted aligned error")
     models = [(m_name, m) for m_name, m in models if "predicted_aligned_error" in m]
     if not models:
         return None
@@ -211,26 +231,3 @@ def plot_structure(pdb_path: Path, out_path: Path) -> None:
     pymol_cmd.png(str(out_path))
 
 
-if __name__ == "__main__":
-    import argparse
-
-    _parser = argparse.ArgumentParser(description=os.path.basename(__file__))
-    _parser.add_argument(
-        "-o",
-        dest="out_dir",
-        default=None,
-        type=Path,
-        help="Output folder (none - plot directly to the screen)",
-    )
-    _parser.add_argument(
-        "data",
-        type=Path,
-        help="Input folder containing alphafold2 output",
-    )
-    _cmd_args = _parser.parse_args()
-
-    main(
-        data_dir=_cmd_args.data,
-        features=load_optional_pkl(_cmd_args.data / "features.pkl"),
-        out_dir=_cmd_args.out_dir,
-    )
